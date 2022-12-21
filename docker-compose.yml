@@ -1,0 +1,82 @@
+version: "3.9"
+
+services:
+  php:
+    build:
+      context: $APP
+      dockerfile: $DOCKER/docker/php/Dockerfile
+    container_name: ${COMPOSE_PROJECT_NAME}_php
+    networks:
+      - sf-app
+    depends_on:
+      - mysql
+      - maildev
+    working_dir: /var/www
+    volumes:
+      - ./docker/php/php.ini:/usr/local/etc/php/php.ini
+      -  ./:/var/www
+    labels:
+      - "traefik.enable=true"
+
+  mysql:
+    build:
+      context: $APP
+      dockerfile: $DOCKER/docker/mysql/Dockerfile
+    container_name: ${COMPOSE_PROJECT_NAME}_mysql
+    env_file: "docker/mysql.env"
+    ports:
+      - "3306:3306"
+    networks:
+      - sf-app
+    platform: linux/amd64
+    volumes:
+      - mysql:/var/lib/mysql
+
+  maildev:
+    build:
+      context: $APP
+      dockerfile: $DOCKER/docker/maildev/Dockerfile
+    container_name: ${COMPOSE_PROJECT_NAME}_maildev
+    networks:
+      - sf-app
+    labels:
+      - "traefik.enable=true"
+
+  nginx:
+    container_name: ${COMPOSE_PROJECT_NAME}_nginx
+    image: nginx:stable-alpine
+    ports:
+      - "3000:80"
+    networks:
+      - sf-app
+    depends_on:
+      - php
+    volumes:
+      - ./docker/nginx/sites-enabled:/etc/nginx/conf.d
+      - ./:/var/www
+    labels:
+      - "traefik.enable=true"
+
+  adminer:
+    build:
+      context: $APP
+      dockerfile: $DOCKER/docker/adminer/Dockerfile
+    container_name: ${COMPOSE_PROJECT_NAME}_adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+    depends_on:
+      - mysql
+    ports:
+      - 8083:8080
+    networks:
+      - sf-app
+    labels:
+      - "traefik.enable=true"
+
+networks:
+  sf-app:
+    name: sf-app
+
+volumes:
+  mysql:
+  nginx_logs:
